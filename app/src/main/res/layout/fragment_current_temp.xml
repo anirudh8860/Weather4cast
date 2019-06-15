@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#DFDFDF">
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="96sp"
+        android:layout_marginTop="56dp"
+        android:gravity="center"
+        android:id="@+id/curr_temp_c"
+        android:fontFamily="@font/roboto_black"/>
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textSize="36sp"
+        android:layout_marginBottom="62dp"
+        android:id="@+id/curr_location"
+        android:fontFamily="@font/roboto_thin"/>
+</LinearLayout>

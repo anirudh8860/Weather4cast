@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="wrap_content"
+    android:layout_height="fill_parent"
+    tools:context=".ErrorFragment"
+    android:background="#E85949">
+    <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:orientation="vertical"
+        android:gravity="center">
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Something went wrong at our end!"
+            android:fontFamily="@font/roboto_thin"
+            android:gravity="center"
+            android:textSize="54sp"
+            android:layout_marginLeft="20dp"
+            android:layout_marginRight="20dp"
+            android:textColor="#FFFFFF"/>
+
+        <Button
+            android:layout_marginTop="44dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="RETRY"
+            android:background="#4A4A4A"
+            android:textColor="#FFFFFF"
+            android:id="@+id/retry_btn"/>
+    </LinearLayout>
+
+</RelativeLayout>
