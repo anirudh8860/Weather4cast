@@ -1,10 +1,12 @@
 package com.example.weather4cast;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Build;
 import android.os.Handler;
+import android.os.Looper;
 import android.support.annotation.NonNull;
 import android.support.annotation.RequiresApi;
 import android.support.v4.app.ActivityCompat;
@@ -31,18 +33,28 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.LocationSettingsRequest;
+import com.google.android.gms.location.SettingsClient;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.gson.Gson;
 
 import java.util.List;
 
+import static com.google.android.gms.location.LocationServices.getFusedLocationProviderClient;
+
 
 public class MainActivity extends AppCompatActivity {
 
-    private FusedLocationProviderClient client;
-    private String lat, lon, latlonStr = "";
+    private static final String TAG = "MyActivity";
+    private static final long UPDATE_INTERVAL = 10000;
+    private static final long FASTEST_INTERVAL = 2000;
+    private String latlonStr = "", url = "";
+    private LocationRequest locationRequest;
     private RecyclerView recyclerView;
     private RecyclerView.LayoutManager manager;
     private RecyclerView.Adapter adapter;
@@ -77,13 +89,13 @@ public class MainActivity extends AppCompatActivity {
         rotation.setFillAfter(false);
         refreshImage.startAnimation(rotation);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
-            getAppPermissions();
+        startLocationUpdate();
 
         mSwipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
             @Override
             public void onRefresh() {
                 mSwipeRefreshLayout.setRefreshing(false);
+                startLocationUpdate();
                 runMethods();
             }
 
@@ -94,32 +106,40 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
-        runMethods();
+        startLocationUpdate();
+        new Handler().postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                runMethods();
+            }
+        }, 2000);
     }
 
-    public void runMethods(){
+    @SuppressLint("MissingPermission")
+    public void runMethods() {
 
         refreshView.setVisibility(View.VISIBLE);
-        client = LocationServices.getFusedLocationProviderClient(this);
-        client.getLastLocation().addOnSuccessListener(new OnSuccessListener<Location>() {
-            @Override
-            public void onSuccess(Location location) {
-                if (location != null){
-                    lat = String.valueOf(location.getLatitude());
-                    lon = String.valueOf(location.getLongitude());
-                    latlonStr = lat + "," + lon;
-                    Log.e("Location", latlonStr);
-                }
-            }
-        });
-        client.getLastLocation().addOnFailureListener(new OnFailureListener() {
-            @Override
-            public void onFailure(@NonNull Exception e) {
-                createErrorFragment();
-            }
-        });
 
-        String url = "https://api.apixu.com/v1/forecast.json?key="+BuildConfig.API_KEY+"&q="+latlonStr+"Delhi&days=5";
+        FusedLocationProviderClient client = getFusedLocationProviderClient(this);
+
+        client.getLastLocation().addOnSuccessListener(new OnSuccessListener<Location>() {
+                    @Override
+                    public void onSuccess(Location location) {
+                        // GPS location can be null if GPS is switched off
+                        if (location != null) {
+                            onLocationChanged(location);
+                        }
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        Log.d("MapDemoActivity", "Error trying to get last GPS location");
+                        e.printStackTrace();
+                    }
+                });
+
+        url = "https://api.apixu.com/v1/forecast.json?key=" + BuildConfig.API_KEY + "&q=" + latlonStr + "&days=5";
 
         final RequestQueue queue = Volley.newRequestQueue(this);
         request = new StringRequest(
@@ -135,21 +155,49 @@ public class MainActivity extends AppCompatActivity {
                 new Response.ErrorListener() {
                     @Override
                     public void onErrorResponse(VolleyError error) {
-                        error.printStackTrace();
                         refreshView.setVisibility(View.GONE);
                         createErrorFragment();
                     }
                 });
 
         queue.add(request);
-
-        queue.addRequestFinishedListener(new RequestQueue.RequestFinishedListener<Object>() {
-            @Override
-            public void onRequestFinished(Request<Object> request) {
-                queue.getCache().clear();
-            }
-        });
     }
+
+
+    private void startLocationUpdate() {
+        locationRequest = new LocationRequest();
+        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        locationRequest.setInterval(UPDATE_INTERVAL);
+        locationRequest.setFastestInterval(FASTEST_INTERVAL);
+
+        LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder();
+        builder.addLocationRequest(locationRequest);
+        LocationSettingsRequest locationSettingsRequest = builder.build();
+
+        SettingsClient settingsClient = LocationServices.getSettingsClient(this);
+        settingsClient.checkLocationSettings(locationSettingsRequest);
+
+        FusedLocationProviderClient client = getFusedLocationProviderClient(this);
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(MainActivity.this,
+                    new String[]{Manifest.permission.ACCESS_COARSE_LOCATION,
+                            Manifest.permission.ACCESS_FINE_LOCATION},
+                    1);
+        }
+        client.requestLocationUpdates(locationRequest, new LocationCallback() {
+            @Override
+            public void onLocationResult(LocationResult locationResult) {
+                onLocationChanged(locationResult.getLastLocation());
+            }
+        }, Looper.myLooper());
+    }
+
+    public void onLocationChanged(Location location) {
+        latlonStr = location.getLatitude() + "," + location.getLongitude();
+    }
+
+
 
     private void showResponse(final String response){
         new Handler().postDelayed(new Runnable() {
@@ -203,15 +251,5 @@ public class MainActivity extends AppCompatActivity {
 
         errorLayout.setVisibility(View.VISIBLE);
         currTempLayout.setVisibility(View.GONE);
-    }
-
-    private void getAppPermissions(){
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
-                        this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(MainActivity.this,
-                    new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},
-                    1);
-        }
     }
 }
